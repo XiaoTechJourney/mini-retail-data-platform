@@ -76,3 +76,110 @@ FROM products;
 -- 乘以 100.0 变成百分比
 -- 再除以售价
 -- 最后保留 2 位小数
+
+-- =========================================================
+-- Part 4: WHERE - 条件筛选
+-- =========================================================
+
+-- 7. 查询价格大于等于 500 日元的商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+WHERE price_yen >= 500;
+
+-- 8. 查询分类为“饮料”的商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+WHERE category = '饮料';
+
+-- 9. 查询成本小于 100 日元的商品
+SELECT
+    product_name,
+    category,
+    cost_yen
+FROM products
+WHERE cost_yen < 100;
+
+-- 10. 查询价格在 150 到 500 日元之间的商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+WHERE price_yen >= 150
+  AND price_yen <= 500;
+
+-- 11. 查询分类为“饮料”并且价格小于 180 日元的商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+WHERE category = '饮料'
+  AND price_yen < 180;
+
+  -- =========================================================
+-- Part 5: ORDER BY and LIMIT - 排序和限制数量
+-- =========================================================
+
+-- 12. 按价格从高到低排序
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+ORDER BY price_yen DESC;
+
+-- 13. 按价格从低到高排序
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+ORDER BY price_yen ASC;
+
+-- 14. 查询价格最高的 3 个商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+ORDER BY price_yen DESC
+LIMIT 3;
+
+-- 15. 查询利润最高的 3 个商品
+SELECT
+    product_name,
+    category,
+    price_yen,
+    cost_yen,
+    price_yen - cost_yen AS profit_yen
+FROM products
+ORDER BY profit_yen DESC
+LIMIT 3;
+
+-- 16. 查询利润率最高的 3 个商品
+SELECT
+    product_name,
+    category,
+    price_yen,
+    cost_yen,
+    ROUND((price_yen - cost_yen) * 100.0 / price_yen, 2) AS profit_margin_percent
+FROM products
+ORDER BY profit_margin_percent DESC
+LIMIT 3;
+
+-- 17. 查询饮料类中价格最高的 1 个商品
+SELECT
+    product_name,
+    category,
+    price_yen
+FROM products
+WHERE category = '饮料'
+ORDER BY price_yen DESC
+LIMIT 1;
