@@ -76,3 +76,106 @@ SELECT
     quantity * unit_price_yen AS line_amount_yen
 FROM order_items
 WHERE order_id = 2;
+
+-- =========================================================
+-- Part 3: Check order total consistency
+-- =========================================================
+
+-- 4. 检查 orders.total_amount_yen 是否等于 order_items 明细合计
+SELECT
+    o.order_id,
+    o.total_amount_yen AS order_total_yen,
+    SUM(oi.quantity * oi.unit_price_yen) AS item_total_yen,
+    SUM(oi.quantity * oi.unit_price_yen) - o.total_amount_yen AS diff_yen
+FROM orders o
+JOIN order_items oi
+    ON o.order_id = oi.order_id
+GROUP BY
+    o.order_id,
+    o.total_amount_yen
+HAVING o.total_amount_yen <> SUM(oi.quantity * oi.unit_price_yen)
+ORDER BY o.order_id;
+
+-- =========================================================
+-- Part 4: Fix inconsistent order total
+-- =========================================================
+
+-- 5. 修正 order_id = 11 的订单总金额
+UPDATE orders
+SET total_amount_yen = 678
+WHERE order_id = 11;
+
+-- 6. 再次检查是否还有不一致的订单
+SELECT
+    o.order_id,
+    o.total_amount_yen AS order_total_yen,
+    SUM(oi.quantity * oi.unit_price_yen) AS item_total_yen,
+    SUM(oi.quantity * oi.unit_price_yen) - o.total_amount_yen AS diff_yen
+FROM orders o
+JOIN order_items oi
+    ON o.order_id = oi.order_id
+GROUP BY
+    o.order_id,
+    o.total_amount_yen
+HAVING o.total_amount_yen <> SUM(oi.quantity * oi.unit_price_yen)
+ORDER BY o.order_id;
+
+-- =========================================================
+-- Part 5: JOIN order_items and products
+-- =========================================================
+
+-- 7. 查询订单明细，并显示商品名称和分类
+SELECT
+    oi.order_item_id,
+    oi.order_id,
+    oi.product_id,
+    p.product_name,
+    p.category,
+    oi.quantity,
+    oi.unit_price_yen,
+    oi.quantity * oi.unit_price_yen AS line_amount_yen
+FROM order_items oi
+JOIN products p
+    ON oi.product_id = p.product_id
+ORDER BY
+    oi.order_id,
+    oi.order_item_id;
+
+    -- =========================================================
+-- Part 6: Product sales analysis
+-- =========================================================
+
+-- 8. 按商品统计 completed 订单中的销售数量和销售额
+SELECT
+    p.product_id,
+    p.product_name,
+    p.category,
+    SUM(oi.quantity) AS total_quantity,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_sales_yen
+FROM order_items oi
+JOIN products p
+    ON oi.product_id = p.product_id
+JOIN orders o
+    ON oi.order_id = o.order_id
+WHERE o.status = 'completed'
+GROUP BY
+    p.product_id,
+    p.product_name,
+    p.category
+ORDER BY total_sales_yen DESC;
+
+-- 9. 按商品分类统计 completed 订单中的销售数量和销售额
+SELECT
+    p.category,
+    SUM(oi.quantity) AS total_quantity,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_sales_yen
+FROM order_items oi
+JOIN products p
+    ON oi.product_id = p.product_id
+JOIN orders o
+    ON oi.order_id = o.order_id
+WHERE o.status = 'completed'
+GROUP BY p.category
+ORDER BY total_sales_yen DESC;
+
+
