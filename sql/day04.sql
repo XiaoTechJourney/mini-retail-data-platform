@@ -178,4 +178,108 @@ WHERE o.status = 'completed'
 GROUP BY p.category
 ORDER BY total_sales_yen DESC;
 
+-- =========================================================
+-- Part 7: Full order detail with customer, store, and product
+-- =========================================================
+
+-- 10. 查询完整订单明细：顾客、门店、商品、金额
+SELECT
+    o.order_id,
+    o.order_date,
+    c.customer_name,
+    s.store_name,
+    s.city,
+    p.product_name,
+    p.category,
+    oi.quantity,
+    oi.unit_price_yen,
+    oi.quantity * oi.unit_price_yen AS line_amount_yen,
+    o.status
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN stores s
+    ON o.store_id = s.store_id
+JOIN products p
+    ON oi.product_id = p.product_id
+ORDER BY
+    o.order_id,
+    oi.order_item_id;
+
+-- 11. 只查询 completed 订单的完整订单明细
+SELECT
+    o.order_id,
+    o.order_date,
+    c.customer_name,
+    s.store_name,
+    s.city,
+    p.product_name,
+    p.category,
+    oi.quantity,
+    oi.unit_price_yen,
+    oi.quantity * oi.unit_price_yen AS line_amount_yen
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN stores s
+    ON o.store_id = s.store_id
+JOIN products p
+    ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+ORDER BY
+    o.order_id,
+    oi.order_item_id;
+
+
+-- =========================================================
+-- Part 8: Store and category sales analysis
+-- =========================================================
+
+-- 12. 按门店和商品分类统计 completed 销售额
+SELECT
+    s.store_name,
+    s.city,
+    p.category,
+    SUM(oi.quantity) AS total_quantity,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_sales_yen
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN stores s
+    ON o.store_id = s.store_id
+JOIN products p
+    ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+GROUP BY
+    s.store_name,
+    s.city,
+    p.category
+ORDER BY
+    s.store_name,
+    total_sales_yen DESC;
+
+-- 13. 按顾客和商品分类统计 completed 消费金额
+SELECT
+    c.customer_name,
+    p.category,
+    SUM(oi.quantity) AS total_quantity,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_spent_yen
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN products p
+    ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+GROUP BY
+    c.customer_name,
+    p.category
+ORDER BY
+    c.customer_name,
+    total_spent_yen DESC;
 
