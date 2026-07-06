@@ -144,3 +144,165 @@ GROUP BY
     s.store_name,
     s.city
 ORDER BY total_profit_yen DESC;
+
+-- =========================================================
+-- Part 6: Customer-level profit analysis
+-- =========================================================
+
+-- 6. 按顾客统计 completed 销售额、成本和利润
+SELECT
+    c.customer_id,
+    c.customer_name,
+    COUNT(DISTINCT o.order_id) AS completed_order_count,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_sales_yen,
+    SUM(oi.quantity * p.cost_yen) AS total_cost_yen,
+    SUM(oi.quantity * (oi.unit_price_yen - p.cost_yen)) AS total_profit_yen,
+    ROUND(
+        SUM(oi.quantity * (oi.unit_price_yen - p.cost_yen)) * 100.0
+        / SUM(oi.quantity * oi.unit_price_yen),
+        2
+    ) AS profit_margin_percent
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN products p
+    ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+GROUP BY
+    c.customer_id,
+    c.customer_name
+ORDER BY total_profit_yen DESC;
+
+-- =========================================================
+-- Part 7: City-level profit analysis
+-- =========================================================
+
+-- 7. 按城市统计 completed 销售额、成本和利润
+SELECT
+    s.city,
+    COUNT(DISTINCT o.order_id) AS completed_order_count,
+    SUM(oi.quantity * oi.unit_price_yen) AS total_sales_yen,
+    SUM(oi.quantity * p.cost_yen) AS total_cost_yen,
+    SUM(oi.quantity * (oi.unit_price_yen - p.cost_yen)) AS total_profit_yen,
+    ROUND(
+        SUM(oi.quantity * (oi.unit_price_yen - p.cost_yen)) * 100.0
+        / SUM(oi.quantity * oi.unit_price_yen),
+        2
+    ) AS profit_margin_percent
+FROM order_items oi
+JOIN orders o
+    ON oi.order_id = o.order_id
+JOIN stores s
+    ON o.store_id = s.store_id
+JOIN products p
+    ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+GROUP BY s.city
+ORDER BY total_profit_yen DESC;
+
+-- =========================================================
+-- Part 8: CTE for completed order item detail
+-- =========================================================
+
+-- 8. 使用 CTE 先整理 completed 订单明细，再查询结果
+WITH completed_items AS (
+    SELECT
+        o.order_id,
+        o.order_date,
+        c.customer_id,
+        c.customer_name,
+        s.store_id,
+        s.store_name,
+        s.city,
+        p.product_id,
+        p.product_name,
+        p.category,
+        oi.quantity,
+        oi.unit_price_yen,
+        p.cost_yen,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN customers c
+        ON o.customer_id = c.customer_id
+    JOIN stores s
+        ON o.store_id = s.store_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+)
+SELECT *
+FROM completed_items
+ORDER BY
+    order_id,
+    product_id;
+-- 9. 使用 CTE 按商品统计利润
+WITH completed_items AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        p.category,
+        oi.quantity,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+)
+SELECT
+    product_id,
+    product_name,
+    category,
+    SUM(quantity) AS total_quantity,
+    SUM(line_sales_yen) AS total_sales_yen,
+    SUM(line_cost_yen) AS total_cost_yen,
+    SUM(line_profit_yen) AS total_profit_yen,
+    ROUND(
+        SUM(line_profit_yen) * 100.0 / SUM(line_sales_yen),
+        2
+    ) AS profit_margin_percent
+FROM completed_items
+GROUP BY
+    product_id,
+    product_name,
+    category
+ORDER BY total_profit_yen DESC;
+-- 10. 使用 CTE 筛选总利润大于等于 400 的商品
+WITH completed_items AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        p.category,
+        oi.quantity,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+)
+SELECT
+    product_id,
+    product_name,
+    category,
+    SUM(line_sales_yen) AS total_sales_yen,
+    SUM(line_profit_yen) AS total_profit_yen
+FROM completed_items
+GROUP BY
+    product_id,
+    product_name,
+    category
+HAVING SUM(line_profit_yen) >= 400
+ORDER BY total_profit_yen DESC;
