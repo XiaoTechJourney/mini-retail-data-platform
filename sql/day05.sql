@@ -306,3 +306,224 @@ GROUP BY
     category
 HAVING SUM(line_profit_yen) >= 400
 ORDER BY total_profit_yen DESC;
+
+-- =========================================================
+-- Part 9: CASE WHEN - Product profit level
+-- =========================================================
+
+-- 11. 使用 CASE WHEN 给商品划分利润等级
+WITH completed_items AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        p.category,
+        oi.quantity,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+),
+product_profit AS (
+    SELECT
+        product_id,
+        product_name,
+        category,
+        SUM(quantity) AS total_quantity,
+        SUM(line_sales_yen) AS total_sales_yen,
+        SUM(line_cost_yen) AS total_cost_yen,
+        SUM(line_profit_yen) AS total_profit_yen,
+        ROUND(
+            SUM(line_profit_yen) * 100.0 / SUM(line_sales_yen),
+            2
+        ) AS profit_margin_percent
+    FROM completed_items
+    GROUP BY
+        product_id,
+        product_name,
+        category
+)
+SELECT
+    product_id,
+    product_name,
+    category,
+    total_sales_yen,
+    total_profit_yen,
+    profit_margin_percent,
+    CASE
+        WHEN total_profit_yen >= 500 THEN 'high_profit'
+        WHEN total_profit_yen >= 200 THEN 'middle_profit'
+        ELSE 'low_profit'
+    END AS profit_level
+FROM product_profit
+ORDER BY total_profit_yen DESC;
+
+-- 12. 按利润等级统计商品数量、销售额和利润
+WITH completed_items AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        p.category,
+        oi.quantity,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+),
+product_profit AS (
+    SELECT
+        product_id,
+        product_name,
+        category,
+        SUM(quantity) AS total_quantity,
+        SUM(line_sales_yen) AS total_sales_yen,
+        SUM(line_cost_yen) AS total_cost_yen,
+        SUM(line_profit_yen) AS total_profit_yen
+    FROM completed_items
+    GROUP BY
+        product_id,
+        product_name,
+        category
+),
+product_profit_level AS (
+    SELECT
+        product_id,
+        product_name,
+        category,
+        total_sales_yen,
+        total_profit_yen,
+        CASE
+            WHEN total_profit_yen >= 500 THEN 'high_profit'
+            WHEN total_profit_yen >= 200 THEN 'middle_profit'
+            ELSE 'low_profit'
+        END AS profit_level
+    FROM product_profit
+)
+SELECT
+    profit_level,
+    COUNT(*) AS product_count,
+    SUM(total_sales_yen) AS total_sales_yen,
+    SUM(total_profit_yen) AS total_profit_yen
+FROM product_profit_level
+GROUP BY profit_level
+ORDER BY total_profit_yen DESC;
+
+-- =========================================================
+-- Part 10: CASE WHEN - Customer value level
+-- =========================================================
+
+-- 13. 按顾客消费金额划分顾客等级
+WITH completed_items AS (
+    SELECT
+        c.customer_id,
+        c.customer_name,
+        o.order_id,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN customers c
+        ON o.customer_id = c.customer_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+),
+customer_profit AS (
+    SELECT
+        customer_id,
+        customer_name,
+        COUNT(DISTINCT order_id) AS completed_order_count,
+        SUM(line_sales_yen) AS total_sales_yen,
+        SUM(line_cost_yen) AS total_cost_yen,
+        SUM(line_profit_yen) AS total_profit_yen
+    FROM completed_items
+    GROUP BY
+        customer_id,
+        customer_name
+)
+SELECT
+    customer_id,
+    customer_name,
+    completed_order_count,
+    total_sales_yen,
+    total_profit_yen,
+    CASE
+        WHEN total_sales_yen >= 1000 THEN 'vip'
+        WHEN total_sales_yen >= 500 THEN 'regular'
+        ELSE 'low_value'
+    END AS customer_level
+FROM customer_profit
+ORDER BY total_sales_yen DESC;
+
+-- =========================================================
+-- Part 11: Customer level summary
+-- =========================================================
+
+-- 14. 按顾客等级汇总销售额和利润
+WITH completed_items AS (
+    SELECT
+        c.customer_id,
+        c.customer_name,
+        o.order_id,
+        oi.quantity * oi.unit_price_yen AS line_sales_yen,
+        oi.quantity * p.cost_yen AS line_cost_yen,
+        oi.quantity * (oi.unit_price_yen - p.cost_yen) AS line_profit_yen
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    JOIN customers c
+        ON o.customer_id = c.customer_id
+    JOIN products p
+        ON oi.product_id = p.product_id
+    WHERE o.status = 'completed'
+),
+customer_profit AS (
+    SELECT
+        customer_id,
+        customer_name,
+        COUNT(DISTINCT order_id) AS completed_order_count,
+        SUM(line_sales_yen) AS total_sales_yen,
+        SUM(line_cost_yen) AS total_cost_yen,
+        SUM(line_profit_yen) AS total_profit_yen
+    FROM completed_items
+    GROUP BY
+        customer_id,
+        customer_name
+),
+customer_level AS (
+    SELECT
+        customer_id,
+        customer_name,
+        completed_order_count,
+        total_sales_yen,
+        total_cost_yen,
+        total_profit_yen,
+        CASE
+            WHEN total_sales_yen >= 1000 THEN 'vip'
+            WHEN total_sales_yen >= 500 THEN 'regular'
+            ELSE 'low_value'
+        END AS customer_level
+    FROM customer_profit
+)
+SELECT
+    customer_level,
+    COUNT(*) AS customer_count,
+    SUM(completed_order_count) AS completed_order_count,
+    SUM(total_sales_yen) AS total_sales_yen,
+    SUM(total_profit_yen) AS total_profit_yen,
+    ROUND(AVG(total_sales_yen), 2) AS avg_sales_per_customer,
+    ROUND(AVG(total_profit_yen), 2) AS avg_profit_per_customer
+FROM customer_level
+GROUP BY customer_level
+ORDER BY total_profit_yen DESC;
